@@ -145,9 +145,18 @@ def is_requesting_tips(user_message: str) -> bool:
     msg = user_message.lower()
     return any(p in msg for p in patterns)
 
+def is_quick_tip_request(user_message: str) -> bool:
+    """Detect if the user is asking for a quick tip, hack, or acronym-based advice."""
+    quick_tip_phrases = [
+        "quick tip", "study hack", "hack", "pomodoro", "pomo", "todo", "summary", "mnemonic", "cheat sheet", "life hack", "focus trick"
+    ]
+    msg = user_message.lower().strip()
+    # Also match if the message is just the phrase or acronym
+    return any(msg == phrase or phrase in msg for phrase in quick_tip_phrases)
+
 
 def generate_ai_response(user_message: str, last_assistant: Optional[str] = None, history: Optional[List[dict]] = None) -> str:
-    """Generate a more adaptive, OpenAI-like response with user character and conversation modules, with added humor and empathy. Now detects direct requests for tips/advice/help."""
+    """Generate a more adaptive, OpenAI-like response with user character and conversation modules, with added humor and empathy. Now detects direct requests for tips/advice/help and short/acronym-based requests."""
     try:
         user_character = detect_user_character(history)
         module = select_conversation_module(user_message, user_character)
@@ -218,6 +227,39 @@ def generate_ai_response(user_message: str, last_assistant: Optional[str] = None
                 "4. Progress is better than perfection.\n"
                 "5. If you want tips for a specific area, just tell me!"
             )
+        # If user gives a short answer or acronym for a quick tip/hack, respond accordingly
+        if is_quick_tip_request(user_message):
+            # Respond with a relevant quick tip or explanation for the acronym
+            if "pomodoro" in user_message_lower or "pomo" in user_message_lower:
+                return (
+                    "The Pomodoro Technique is a time management method: work for 25 minutes, then take a 5-minute break. Repeat 4 times, then take a longer break. It's great for focus and avoiding burnout! Want to try it or need a timer suggestion?"
+                )
+            if "todo" in user_message_lower:
+                return (
+                    "A quick tip: Keep a simple to-do list for the day. Limit it to 3-5 main tasks so you don't get overwhelmed. Checking things off feels great!"
+                )
+            if "mnemonic" in user_message_lower:
+                return (
+                    "Mnemonics are memory aids—like 'PEMDAS' for math order of operations. Make up a silly phrase or acronym to help you remember lists or steps!"
+                )
+            if "cheat sheet" in user_message_lower:
+                return (
+                    "A cheat sheet is a summary of key info—make one for each subject with formulas, dates, or vocab. Reviewing it before tests is super helpful!"
+                )
+            if "study hack" in user_message_lower or "hack" in user_message_lower:
+                return (
+                    "Study hack: Teach what you just learned to someone else (even a pet or a rubber duck). Explaining out loud helps you find gaps in your understanding!"
+                )
+            if "summary" in user_message_lower:
+                return (
+                    "Quick summary tip: After reading a chapter, write 2-3 sentences in your own words. This helps you remember and spot what you didn't fully get."
+                )
+            if "focus trick" in user_message_lower:
+                return (
+                    "Focus trick: Put your phone in another room and set a timer for 20 minutes. Promise yourself a reward after!"
+                )
+            # General fallback for 'quick tip'
+            return "Quick tip: Set a timer for 10 minutes and start on the easiest task. Getting started is often the hardest part! Want another tip?"
         # Handle statements (not just questions)
         if user_message_lower.endswith(".") or (user_message_lower and not user_message_lower.endswith("?")):
             # Empathetic statement handling
