@@ -28,9 +28,17 @@ body, html, #root, .app-background {
 }
 
 .sidebar-header {
-  padding: 1rem;
-  border-bottom: 1px solid #4a5568;
-  background: #2d3748;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sidebar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .sidebar-header h3 {
@@ -41,21 +49,40 @@ body, html, #root, .app-background {
 }
 
 .new-chat-btn {
-  background: #48bb78;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
+  padding: 8px 16px;
   border-radius: 6px;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 500;
-  width: 100%;
+  font-size: 0.9rem;
+  transition: transform 0.2s;
 }
 
 .new-chat-btn:hover {
   background: #38a169;
   transform: translateY(-1px);
+}
+
+.settings-btn {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-btn:hover {
+  background: #e5e7eb;
+  transform: scale(1.05);
 }
 
 .chat-history-list {

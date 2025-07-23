@@ -7,11 +7,33 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - HUGGINGFACE_TOKEN=
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN:-}
+      - JWT_SECRET_KEY=your-secret-key-here-change-in-production
+      - DATABASE_URL=sqlite:///./ai_assistant.db
+      - DEFAULT_AI_MODEL=huggingface-free
+      - MAX_TOKENS=2048
+      - TEMPERATURE=0.7
 
   frontend:
     build: ./frontend
     ports:
       - "3000:80"
     depends_on:
-      - backend 
+      - backend
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+
+  # Optional: Ollama for local AI models (completely free)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    profiles:
+      - local-ai
+
+volumes:
+  ollama_data: 

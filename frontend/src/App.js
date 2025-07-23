@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import Chat from './Chat';
+import AISettings from './AISettings';
 
 function App() {
   const [chatHistory, setChatHistory] = useState([]); // Array of {id, messages: [{sender, text, timestamp}], timestamp}
   const [selectedChat, setSelectedChat] = useState(null); // The chat object
   const [chatKey, setChatKey] = useState(0);
+  const [showAISettings, setShowAISettings] = useState(false);
   const [currentChat, setCurrentChat] = useState({
     id: Date.now(),
     messages: [
@@ -32,7 +34,7 @@ function App() {
     }
   }, [selectedChat]);
 
-  const handleSendMessage = async (message) => {
+  const handleSendMessage = async (message, model = 'fallback-enhanced') => {
     // Add user message
     const userMsg = { sender: 'user', text: message, timestamp: new Date().toISOString() };
     let assistantMsg;
@@ -42,18 +44,36 @@ function App() {
     }));
     // Send the full conversation history (including the new user message)
     const history = [...currentChat.messages, userMsg];
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, history })
-    });
-    const data = await response.json();
-    assistantMsg = { sender: 'assistant', text: data.response, timestamp: new Date().toISOString() };
-    setCurrentChat(prev => ({
-      ...prev,
-      messages: [...prev.messages, assistantMsg]
-    }));
-    return data.response;
+    try {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
+      const response = await fetch(`${backendUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, history, model })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      assistantMsg = { sender: 'assistant', text: data.response, timestamp: new Date().toISOString() };
+      setCurrentChat(prev => ({
+        ...prev,
+        messages: [...prev.messages, assistantMsg]
+      }));
+      return data.response;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      assistantMsg = { 
+        sender: 'assistant', 
+        text: 'Sorry, I\'m having trouble connecting right now. Please try again later.', 
+        timestamp: new Date().toISOString() 
+      };
+      setCurrentChat(prev => ({
+        ...prev,
+        messages: [...prev.messages, assistantMsg]
+      }));
+      return assistantMsg.text;
+    }
   };
 
   const handleNewChat = () => {
@@ -98,7 +118,12 @@ function App() {
         <div className="chat-history-sidebar">
           <div className="sidebar-header">
             <h3>Chat History</h3>
-            <button className="new-chat-btn" onClick={handleNewChat}>+ New Chat</button>
+            <div className="sidebar-actions">
+              <button className="new-chat-btn" onClick={handleNewChat}>+ New Chat</button>
+              <button className="settings-btn" onClick={() => setShowAISettings(true)} title="AI Settings">
+                ⚙️
+              </button>
+            </div>
           </div>
           <div className="chat-history-list">
             {chatHistory.length === 0 ? (
@@ -146,6 +171,7 @@ function App() {
           <Chat key={chatKey} onSend={handleSendMessage} selectedChat={currentChat} />
         </div>
       </div>
+      <AISettings isOpen={showAISettings} onClose={() => setShowAISettings(false)} />
     </div>
   );
 }

@@ -15,6 +15,11 @@ export default function Chat({ onSend, selectedChat }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuggestedPrompts, setShowSuggestedPrompts] = useState(true);
+  const [topic, setTopic] = useState(null); // Track the current topic
+  const [allowInput, setAllowInput] = useState(false); // Control input visibility
+  const [offTopicWarning, setOffTopicWarning] = useState(''); // Show off-topic warning
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(new Set()); // Track which messages have feedback
+  const [selectedModel, setSelectedModel] = useState('gpt-3.5-turbo'); // Default model
   const messagesEndRef = useRef(null);
 
   // Use messages from selectedChat or default welcome message
@@ -43,40 +48,113 @@ export default function Chat({ onSend, selectedChat }) {
     setShowSuggestedPrompts(false);
     setInput('');
     setLoading(true);
-    // Add user message and 'Typing...' message
+    setOffTopicWarning('');
+    // If this is the first message (from a suggestion), set the topic
+    if (!topic) {
+      setTopic(text);
+    } else {
+      // Check if the user is off-topic (not a casual message)
+      const casual = /\b(thank(s| you)?|bye|see you|goodbye|your welcome|you're welcome|hi|hello)\b/i;
+      if (!text.toLowerCase().includes(topic.toLowerCase()) && !casual.test(text)) {
+        setOffTopicWarning(`Let's try to stay on topic: "${topic}". You can ask more about it or say 'thanks' if you're done!`);
+      }
+    }
+    setAllowInput(true); // Always allow input after first send
     if (onSend) {
-      await onSend(text);
+      await onSend(text, selectedModel);
     }
     setLoading(false);
   };
 
+  const handleFeedback = async (messageIndex, rating) => {
+    const message = messages[messageIndex];
+    if (message.sender === 'assistant' && !feedbackSubmitted.has(messageIndex)) {
+      try {
+        await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: message.text,
+            rating: rating
+          })
+        });
+        setFeedbackSubmitted(prev => new Set([...prev, messageIndex]));
+      } catch (error) {
+        console.error('Failed to submit feedback:', error);
+      }
+    }
+  };
+
   return (
     <div className="chat-box">
+      {/* Model Selection */}
+      {allowInput && (
+        <div className="model-selector">
+          <label htmlFor="model-select">AI Model: </label>
+          <select
+            id="model-select"
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="model-dropdown"
+          >
+            <option value="huggingface-free">🤗 HuggingFace Free</option>
+            <option value="community-free">🌐 Community Models</option>
+            <option value="ollama-local">🖥️ Ollama Local (if available)</option>
+            <option value="fallback-enhanced">💡 Enhanced Local</option>
+          </select>
+        </div>
+      )}
       <div className="messages">
         {messages.map((msg, i) => (
-          <div key={i} className={`msg ${msg.sender}`}>{msg.text}</div>
+          <div key={i} className={`msg ${msg.sender}`}>
+            {msg.text}
+            {msg.sender === 'assistant' && !feedbackSubmitted.has(i) && (
+              <div className="feedback-buttons">
+                <button 
+                  onClick={() => handleFeedback(i, 1)} 
+                  className="feedback-btn positive"
+                  title="This was helpful"
+                >
+                  👍
+                </button>
+                <button 
+                  onClick={() => handleFeedback(i, -1)} 
+                  className="feedback-btn negative"
+                  title="This was not helpful"
+                >
+                  👎
+                </button>
+              </div>
+            )}
+            {msg.sender === 'assistant' && feedbackSubmitted.has(i) && (
+              <div className="feedback-submitted">Thanks for your feedback!</div>
+            )}
+          </div>
         ))}
-        {loading && <div className="msg assistant">Thinking...</div>}
+        {loading && <div className="msg assistant loading">🤔 Thinking about your question...</div>}
+        {offTopicWarning && <div className="msg assistant warning">{offTopicWarning}</div>}
         <div ref={messagesEndRef} /> {/* Invisible element for auto-scroll */}
       </div>
       {showSuggestedPrompts && (
         <div className="suggested-prompts">
           {SUGGESTED_PROMPTS.map((prompt, i) => (
-            <button key={i} onClick={() => handleSend(prompt)} disabled={loading}>{prompt}</button>
+            <button key={i} onClick={() => { handleSend(prompt); setAllowInput(true); }} disabled={loading}>{prompt}</button>
           ))}
         </div>
       )}
-      <div className="input-row">
-        <input
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Type your question..."
-          onKeyDown={e => { if (e.key === 'Enter') handleSend(input); }}
-          disabled={loading}
-        />
-        <button onClick={() => handleSend(input)} disabled={loading}>Send</button>
-      </div>
+      {allowInput && (
+        <div className="input-row">
+          <input
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Type your question..."
+            onKeyDown={e => { if (e.key === 'Enter') handleSend(input); }}
+            disabled={loading}
+          />
+          <button onClick={() => handleSend(input)} disabled={loading}>Send</button>
+        </div>
+      )}
     </div>
   );
 } 

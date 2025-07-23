@@ -7,8 +7,12 @@ ls -l /app
 echo "==== DEBUG: List /app/backend ===="
 ls -l /app/backend
 
-# Start the backend in the background and log output
+# Run database migrations
 cd /app/backend || exit 1
+echo "==== DEBUG: Running database migrations ===="
+python -m alembic upgrade head
+
+# Start the backend in the background and log output
 echo "==== DEBUG: Starting backend ===="
 python -m uvicorn main:app --host 0.0.0.0 --port 8000 > /app/backend.log 2>&1 &
 

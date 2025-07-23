@@ -26,6 +26,7 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env
 
 # Database
 *.db
@@ -46,4 +47,22 @@ Thumbs.db
 *.log
 
 # Docker
-.dockerignore 
+.dockerignore
+
+# Alembic
+alembic/versions/*.py
+!alembic/versions/__init__.py
+
+# Environment files
+env.example
+
+# Temporary files
+*.tmp
+*.temp
+
+# Coverage reports
+htmlcov/
+.coverage
+
+# Jupyter Notebook
+.ipynb_checkpoints 

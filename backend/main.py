@@ -6,11 +6,11 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import httpx
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict
 import jwt
 
 from database import get_db
-from models import User, Chat, Reminder
+from models import User, Chat, Reminder, Feedback, Document, ConversationEmbedding
 from auth import (
     get_password_hash, 
     authenticate_user, 
@@ -20,13 +20,14 @@ from auth import (
     SECRET_KEY,
     ALGORITHM
 )
+from ai_engine import ai_engine
 
 app = FastAPI()
 
 # Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://localhost:80", "https://your-domain.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,6 +40,19 @@ security = HTTPBearer()
 class ChatRequest(BaseModel):
     message: str
     history: Optional[List[dict]] = None
+    model: Optional[str] = None
+    documents: Optional[List[str]] = None
+
+class DocumentUpload(BaseModel):
+    filename: str
+    content: str
+    file_type: str
+
+class UserPreferences(BaseModel):
+    communication_style: Optional[str] = "neutral"
+    study_level: Optional[str] = "high_school"
+    preferred_model: Optional[str] = None
+    preferences: Optional[Dict] = {}
 
 class UserCreate(BaseModel):
     email: str
@@ -63,6 +77,11 @@ class ReminderResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class FeedbackRequest(BaseModel):
+    chat_id: Optional[int] = None
+    message: str
+    rating: int  # 1 for positive, -1 for negative
 
 # Free AI Service Configuration
 HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
@@ -363,6 +382,10 @@ def generate_ai_response(user_message: str, last_assistant: Optional[str] = None
 def read_root():
     return {"message": "Backend is running!"}
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
 @app.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
@@ -398,20 +421,139 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
 
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest, current_user: Optional[User] = Depends(get_current_user_optional), db: Session = Depends(get_db)):
-    # Generate AI response using our free service
-    ai_response = generate_ai_response(req.message, req.last_assistant if hasattr(req, 'last_assistant') else None, req.history)
-    
-    # Save to database if user is logged in
-    if current_user:
-        chat = Chat(
-            user_id=current_user.id,
+    try:
+        # Get user context
+        user_context = None
+        if current_user:
+            user_context = {
+                "communication_style": current_user.communication_style,
+                "study_level": current_user.study_level,
+                "preferences": current_user.preferences
+            }
+        
+        # Get user documents for context
+        documents = []
+        if current_user and req.documents:
+            user_docs = db.query(Document).filter(Document.user_id == current_user.id).all()
+            documents = [doc.content for doc in user_docs]
+        
+        # Generate AI response using enhanced engine
+        ai_response = await ai_engine.generate_response(
             message=req.message,
-            response=ai_response
+            history=req.history,
+            model=req.model,
+            user_context=user_context,
+            documents=documents
         )
-        db.add(chat)
+        
+        # Save to database if user is logged in
+        if current_user:
+            chat = Chat(
+                user_id=current_user.id,
+                message=req.message,
+                response=ai_response["content"],
+                model_used=ai_response["model"],
+                tokens_used=ai_response["tokens_used"],
+                context_length=len(req.history) if req.history else 0
+            )
+            db.add(chat)
+            db.commit()
+            
+            # Store conversation embedding for future reference
+            conversation_text = f"User: {req.message}\nAssistant: {ai_response['content']}"
+            embedding = ai_engine.create_embedding(conversation_text)
+            if embedding:
+                conv_embedding = ConversationEmbedding(
+                    user_id=current_user.id,
+                    conversation_text=conversation_text,
+                    embedding=embedding
+                )
+                db.add(conv_embedding)
+                db.commit()
+        
+        return {
+            "response": ai_response["content"],
+            "model": ai_response["model"],
+            "tokens_used": ai_response["tokens_used"],
+            "provider": ai_response["provider"]
+        }
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error in chat endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again.")
+
+@app.get("/models")
+def get_available_models():
+    """Get list of available AI models"""
+    return {
+        "available_models": ai_engine.get_available_models(),
+        "default_model": ai_engine.default_model,
+        "model_info": ai_engine.models
+    }
+
+@app.post("/documents/upload")
+def upload_document(doc: DocumentUpload, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Upload and process a document for context"""
+    try:
+        # Create document record
+        document = Document(
+            user_id=current_user.id,
+            filename=doc.filename,
+            content=doc.content,
+            file_type=doc.file_type
+        )
+        
+        # Create embeddings for semantic search
+        embedding = ai_engine.create_embedding(doc.content)
+        if embedding:
+            document.embeddings = embedding
+        
+        db.add(document)
         db.commit()
-    
-    return {"response": ai_response}
+        db.refresh(document)
+        
+        return {"status": "success", "document_id": document.id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error uploading document: {str(e)}")
+
+@app.get("/documents")
+def get_user_documents(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get user's uploaded documents"""
+    documents = db.query(Document).filter(Document.user_id == current_user.id).all()
+    return [
+        {
+            "id": doc.id,
+            "filename": doc.filename,
+            "file_type": doc.file_type,
+            "uploaded_at": doc.uploaded_at
+        }
+        for doc in documents
+    ]
+
+@app.put("/user/preferences")
+def update_user_preferences(prefs: UserPreferences, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Update user preferences and settings"""
+    try:
+        if prefs.communication_style:
+            current_user.communication_style = prefs.communication_style
+        if prefs.study_level:
+            current_user.study_level = prefs.study_level
+        if prefs.preferences:
+            current_user.preferences.update(prefs.preferences)
+        
+        db.commit()
+        return {"status": "success", "message": "Preferences updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating preferences: {str(e)}")
+
+@app.get("/user/preferences")
+def get_user_preferences(current_user: User = Depends(get_current_user)):
+    """Get user preferences and settings"""
+    return {
+        "communication_style": current_user.communication_style,
+        "study_level": current_user.study_level,
+        "preferences": current_user.preferences
+    }
 
 @app.get("/chat/history")
 def get_chat_history(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -445,3 +587,16 @@ def complete_reminder(reminder_id: int, current_user: User = Depends(get_current
     reminder.completed = True
     db.commit()
     return reminder 
+
+# Endpoint to receive feedback on assistant messages
+@app.post("/feedback")
+def submit_feedback(feedback: FeedbackRequest, db: Session = Depends(get_db)):
+    fb = Feedback(
+        chat_id=feedback.chat_id,
+        message=feedback.message,
+        rating=feedback.rating
+    )
+    db.add(fb)
+    db.commit()
+    db.refresh(fb)
+    return {"status": "success", "feedback_id": fb.id} 
