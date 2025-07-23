@@ -49,31 +49,22 @@ export default function Chat({ onSend, selectedChat }) {
 
   const handleSend = async (text) => {
     if (!text.trim() || loading) return;
-    
-    // Hide suggested prompts after first message
     setShowSuggestedPrompts(false);
-    
     setMessages(msgs => [...msgs, { sender: 'user', text }]);
     setInput('');
     setLoading(true);
-    
-    // Use the onSend prop if provided, otherwise use the old method
+    // Show typing animation immediately
+    setMessages(msgs => [...msgs, { sender: 'user', text }, { sender: 'assistant', text: 'Typing...' }]);
+    let reply = '';
     if (onSend) {
-      const reply = await onSend(text);
-      setMessages(msgs => [...msgs, { sender: 'assistant', text: reply }]);
+      reply = await onSend(text);
     } else {
-      try {
-        const res = await fetch(`${BACKEND_URL}/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text })
-        });
-        const data = await res.json();
-        setMessages(msgs => [...msgs, { sender: 'assistant', text: data.response }]);
-      } catch (e) {
-        setMessages(msgs => [...msgs, { sender: 'assistant', text: 'Sorry, there was a problem contacting the AI.' }]);
-      }
+      reply = 'This is a placeholder response.';
     }
+    setMessages(msgs => [
+      ...msgs.slice(0, -1), // Remove the 'Typing...' message
+      { sender: 'assistant', text: reply }
+    ]);
     setLoading(false);
   };
 
