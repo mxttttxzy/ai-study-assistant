@@ -38,6 +38,7 @@ security = HTTPBearer()
 # Pydantic models
 class ChatRequest(BaseModel):
     message: str
+    last_assistant: Optional[str] = None
 
 class UserCreate(BaseModel):
     email: str
@@ -100,10 +101,24 @@ def get_current_user_optional(request: Request, db: Session = Depends(get_db)):
     user = get_user_by_email(db, email=email)
     return user
 
-def generate_ai_response(user_message: str) -> str:
-    """Generate a calm, friendly, and general AI response for life balance and well-being."""
+def generate_ai_response(user_message: str, last_assistant: Optional[str] = None) -> str:
+    """Generate a calm, friendly, and general AI response for life balance and well-being, with simple context awareness."""
     try:
         user_message_lower = user_message.lower()
+        last_assistant_lower = (last_assistant or '').lower()
+
+        # If last assistant message was a question and user gives a vague answer, follow up
+        vague_replies = [
+            "nothing much", "not really", "idk", "i don't know", "just school", "not sure", "nah", "nope", "nothing", "just life"
+        ]
+        if last_assistant and '?' in last_assistant_lower:
+            if any(vague in user_message_lower for vague in vague_replies):
+                # Try to extract topic from user's reply
+                if "school" in user_message_lower:
+                    return "School can be a lot sometimes. Is there something specific about school that's been on your mind lately?"
+                if "life" in user_message_lower:
+                    return "Life can feel overwhelming at times. Is there a part of life that's been especially challenging or rewarding for you recently?"
+                return "That's okay! Sometimes it's hard to put things into words. Is there anything—big or small—that's been on your mind, or would you like to talk about something in particular?"
 
         # Break and rest related
         if any(keyword in user_message_lower for keyword in ["break", "rest", "tired", "exhausted", "burnout"]):
@@ -170,9 +185,9 @@ def generate_ai_response(user_message: str) -> str:
 
         else:
             generic_responses = [
-                "I'm here to listen and support you. What's on your mind today?",
-                "Balancing life can be challenging, but you're not alone. Is there something specific you'd like advice or encouragement about?",
-                "Remember to take things one step at a time. If you want to talk or need a strategy, just let me know."
+                "I'm here to listen and support you. What's been on your mind lately?",
+                "If there's something you'd like to talk about, I'm here. Is there a topic or feeling you'd like to explore?",
+                "Sometimes just chatting can help. Is there anything you'd like advice or encouragement about today?"
             ]
             return generic_responses[len(user_message) % len(generic_responses)]
     except Exception as e:
@@ -218,7 +233,7 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest, current_user: Optional[User] = Depends(get_current_user_optional), db: Session = Depends(get_db)):
     # Generate AI response using our free service
-    ai_response = generate_ai_response(req.message)
+    ai_response = generate_ai_response(req.message, req.last_assistant)
     
     # Save to database if user is logged in
     if current_user:
