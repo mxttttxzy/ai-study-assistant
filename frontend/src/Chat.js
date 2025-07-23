@@ -13,37 +13,28 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || (window.location.hostna
 
 export default function Chat({ onSend, selectedChat }) {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState([
-    { sender: 'assistant', text: 'Hi! How can I help you with your study-life balance today?' }
-  ]);
   const [loading, setLoading] = useState(false);
   const [showSuggestedPrompts, setShowSuggestedPrompts] = useState(true);
   const messagesEndRef = useRef(null);
 
-  // Auto-scroll to bottom when messages change
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Use messages from selectedChat or default welcome message
+  const messages = selectedChat && selectedChat.messages && selectedChat.messages.length > 0
+    ? selectedChat.messages
+    : [
+        { sender: 'assistant', text: 'Hi! How can I help you with your study-life balance today?' }
+      ];
 
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Handle selected chat changes
+  // Show/hide suggested prompts based on whether it's a new chat
   useEffect(() => {
-    if (selectedChat) {
-      // Display the selected chat
-      setMessages([
-        { sender: 'user', text: selectedChat.message },
-        { sender: 'assistant', text: selectedChat.response }
-      ]);
-      setShowSuggestedPrompts(false); // Hide prompts when viewing history
+    if (selectedChat && selectedChat.messages && selectedChat.messages.length > 1) {
+      setShowSuggestedPrompts(false);
     } else {
-      // Reset to welcome message for new chat
-      setMessages([
-        { sender: 'assistant', text: 'Hi! How can I help you with your study-life balance today?' }
-      ]);
-      setShowSuggestedPrompts(true); // Show prompts for new chat
+      setShowSuggestedPrompts(true);
     }
   }, [selectedChat]);
 
@@ -53,26 +44,9 @@ export default function Chat({ onSend, selectedChat }) {
     setInput('');
     setLoading(true);
     // Add user message and 'Typing...' message
-    setMessages(msgs => [
-      ...msgs,
-      { sender: 'user', text },
-      { sender: 'assistant', text: 'Typing...' }
-    ]);
-    let reply = '';
-    try {
-      if (onSend) {
-        reply = await onSend(text);
-      } else {
-        reply = 'This is a placeholder response.';
-      }
-    } catch (e) {
-      reply = 'Sorry, there was a problem contacting the AI.';
+    if (onSend) {
+      await onSend(text);
     }
-    // Replace the last 'Typing...' message with the real response
-    setMessages(msgs => [
-      ...msgs.slice(0, -1),
-      { sender: 'assistant', text: reply }
-    ]);
     setLoading(false);
   };
 
@@ -85,7 +59,6 @@ export default function Chat({ onSend, selectedChat }) {
         {loading && <div className="msg assistant">Thinking...</div>}
         <div ref={messagesEndRef} /> {/* Invisible element for auto-scroll */}
       </div>
-      
       {showSuggestedPrompts && (
         <div className="suggested-prompts">
           {SUGGESTED_PROMPTS.map((prompt, i) => (
@@ -93,7 +66,6 @@ export default function Chat({ onSend, selectedChat }) {
           ))}
         </div>
       )}
-      
       <div className="input-row">
         <input
           type="text"

@@ -107,9 +107,34 @@ function App() {
                   key={chat.id}
                   className={`chat-history-item${selectedChat && selectedChat.id === chat.id ? ' selected' : ''}`}
                   onClick={() => setSelectedChat(chat)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                 >
-                  <div className="chat-title">{formatChatTitle(chat)}</div>
-                  <div className="chat-date">{new Date(chat.timestamp).toLocaleString()}</div>
+                  <div style={{ flex: 1 }}>
+                    <div className="chat-title">{formatChatTitle(chat)}</div>
+                    <div className="chat-date">{new Date(chat.timestamp).toLocaleString()}</div>
+                  </div>
+                  <button
+                    className="delete-chat-btn"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setChatHistory(prev => prev.filter(c => c.id !== chat.id));
+                      if (selectedChat && selectedChat.id === chat.id) {
+                        setSelectedChat(null);
+                        setCurrentChat({
+                          id: Date.now(),
+                          messages: [
+                            { sender: 'assistant', text: 'Hi! How can I help you with your study-life balance today?', timestamp: new Date().toISOString() }
+                          ],
+                          timestamp: new Date().toISOString()
+                        });
+                        setChatKey(prev => prev + 1);
+                      }
+                    }}
+                    style={{ marginLeft: 8, background: 'transparent', border: 'none', color: '#e53e3e', cursor: 'pointer', fontSize: '1.2em' }}
+                    title="Delete chat"
+                  >
+                    ×
+                  </button>
                 </div>
               ))
             )}
