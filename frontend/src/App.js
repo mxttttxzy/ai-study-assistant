@@ -35,6 +35,7 @@ function App() {
   const handleSendMessage = async (message) => {
     // Add user message
     const userMsg = { sender: 'user', text: message, timestamp: new Date().toISOString() };
+    let assistantMsg;
     setCurrentChat(prev => ({
       ...prev,
       messages: [...prev.messages, userMsg]
@@ -46,10 +47,10 @@ function App() {
       body: JSON.stringify({ message })
     });
     const data = await response.json();
-    const assistantMsg = { sender: 'assistant', text: data.response, timestamp: new Date().toISOString() };
+    assistantMsg = { sender: 'assistant', text: data.response, timestamp: new Date().toISOString() };
     setCurrentChat(prev => ({
       ...prev,
-      messages: [...prev.messages, userMsg, assistantMsg]
+      messages: [...prev.messages, assistantMsg]
     }));
     return data.response;
   };
