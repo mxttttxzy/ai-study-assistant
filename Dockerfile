@@ -22,6 +22,9 @@ RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
 # Copy backend
 COPY --from=backend-build /app /app/backend
 
+# Install backend dependencies in the final image
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+
 # Copy frontend build
 COPY --from=frontend-build /app/frontend/build /var/www/html
 
