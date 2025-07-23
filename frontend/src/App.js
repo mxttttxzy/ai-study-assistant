@@ -40,11 +40,12 @@ function App() {
       ...prev,
       messages: [...prev.messages, userMsg]
     }));
-    // Simulate backend call
+    // Send the full conversation history (including the new user message)
+    const history = [...currentChat.messages, userMsg];
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message })
+      body: JSON.stringify({ message, history })
     });
     const data = await response.json();
     assistantMsg = { sender: 'assistant', text: data.response, timestamp: new Date().toISOString() };

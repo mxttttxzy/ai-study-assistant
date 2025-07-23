@@ -38,7 +38,7 @@ security = HTTPBearer()
 # Pydantic models
 class ChatRequest(BaseModel):
     message: str
-    last_assistant: Optional[str] = None
+    history: Optional[List[dict]] = None
 
 class UserCreate(BaseModel):
     email: str
@@ -101,19 +101,29 @@ def get_current_user_optional(request: Request, db: Session = Depends(get_db)):
     user = get_user_by_email(db, email=email)
     return user
 
-def generate_ai_response(user_message: str, last_assistant: Optional[str] = None) -> str:
-    """Generate a calm, friendly, and general AI response for life balance and well-being, with simple context awareness."""
+def generate_ai_response(user_message: str, last_assistant: Optional[str] = None, history: Optional[List[dict]] = None) -> str:
+    """Generate a calm, friendly, and general AI response for life balance and well-being, with multi-turn context awareness."""
     try:
         user_message_lower = user_message.lower()
         last_assistant_lower = (last_assistant or '').lower()
-
-        # If last assistant message was a question and user gives a vague answer, follow up
+        # Use history for context
+        if history and len(history) > 1:
+            # Find the last assistant message
+            last_ai = next((m['text'] for m in reversed(history[:-1]) if m['sender'] == 'assistant'), None)
+            last_user = next((m['text'] for m in reversed(history[:-1]) if m['sender'] == 'user'), None)
+            # If user asks for more detail or clarification, build on last AI answer
+            if any(kw in user_message_lower for kw in ["more detail", "explain", "expand", "clarify", "what do you mean", "can you elaborate", "why", "how so"]):
+                if last_ai:
+                    return f"Sure! To expand on what I said: {last_ai} Is there a particular part you'd like more detail about, or does something stand out to you?"
+            # If user references a previous topic, follow up
+            if last_user and any(topic in user_message_lower for topic in last_user.lower().split()):
+                return f"You mentioned '{last_user}'. How has that been going for you since we last talked about it?"
+        # (Keep the previous vague answer logic for single-turn context)
         vague_replies = [
             "nothing much", "not really", "idk", "i don't know", "just school", "not sure", "nah", "nope", "nothing", "just life"
         ]
         if last_assistant and '?' in last_assistant_lower:
             if any(vague in user_message_lower for vague in vague_replies):
-                # Try to extract topic from user's reply
                 if "school" in user_message_lower:
                     return "School can be a lot sometimes. Is there something specific about school that's been on your mind lately?"
                 if "life" in user_message_lower:
@@ -233,7 +243,7 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest, current_user: Optional[User] = Depends(get_current_user_optional), db: Session = Depends(get_db)):
     # Generate AI response using our free service
-    ai_response = generate_ai_response(req.message, req.last_assistant)
+    ai_response = generate_ai_response(req.message, req.last_assistant if hasattr(req, 'last_assistant') else None, req.history)
     
     # Save to database if user is logged in
     if current_user:
