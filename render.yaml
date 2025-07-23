@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ai-study-assistant
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    buildCommand: echo "Building with Docker..."
+    startCommand: echo "Starting with Docker..." 

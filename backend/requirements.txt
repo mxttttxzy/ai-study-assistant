@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlite-utils
+httpx
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
+PyJWT 
