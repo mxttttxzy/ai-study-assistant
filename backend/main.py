@@ -137,8 +137,17 @@ def select_conversation_module(user_message: str, user_character: dict) -> str:
     return "general"
 
 
+def is_requesting_tips(user_message: str) -> bool:
+    """Detect if the user is directly asking for tips, advice, or help."""
+    patterns = [
+        "give me tips", "any tips", "advice", "help me", "suggest", "recommend", "how do i", "how should i", "what should i do", "can you help", "can you give", "do you have tips", "do you have advice", "what's the best way", "how can i"
+    ]
+    msg = user_message.lower()
+    return any(p in msg for p in patterns)
+
+
 def generate_ai_response(user_message: str, last_assistant: Optional[str] = None, history: Optional[List[dict]] = None) -> str:
-    """Generate a more adaptive, OpenAI-like response with user character and conversation modules, with added humor and empathy."""
+    """Generate a more adaptive, OpenAI-like response with user character and conversation modules, with added humor and empathy. Now detects direct requests for tips/advice/help."""
     try:
         user_character = detect_user_character(history)
         module = select_conversation_module(user_message, user_character)
@@ -153,6 +162,62 @@ def generate_ai_response(user_message: str, last_assistant: Optional[str] = None
                 "If your brain feels like mashed potatoes, that's okay. Sometimes the best ideas come with a side of gravy!"
             ]
             return f"I'm really sorry to hear that. {jokes[len(user_message) % len(jokes)]} Want to talk more about what's been making you feel this way?"
+        # If user is directly asking for tips/advice/help, give actionable advice
+        if is_requesting_tips(user_message):
+            if module == "study_support":
+                return (
+                    "Here are some study schedule tips:\n"
+                    "1. Break your study time into focused blocks (e.g., 25-50 minutes) with short breaks in between.\n"
+                    "2. Prioritize your hardest subjects first when your mind is fresh.\n"
+                    "3. Use a planner or app to map out your week and set realistic goals.\n"
+                    "4. Review your notes regularly, not just before exams.\n"
+                    "5. Don't forget to schedule time for rest and fun! Want more detail on any of these?"
+                )
+            if module == "time_management":
+                return (
+                    "Time management tips:\n"
+                    "1. List your top 3 priorities for the day.\n"
+                    "2. Use a calendar or reminders to block out time for each task.\n"
+                    "3. Batch similar tasks together to stay in the zone.\n"
+                    "4. Leave buffer time for unexpected things.\n"
+                    "5. Be kind to yourself if things don't go as planned—progress, not perfection!"
+                )
+            if module == "motivation":
+                return (
+                    "Motivation boosters:\n"
+                    "1. Set small, achievable goals and celebrate each win.\n"
+                    "2. Remind yourself why your work matters to you.\n"
+                    "3. Change your environment if you're feeling stuck.\n"
+                    "4. Reward yourself after focused work sessions.\n"
+                    "5. If you need a pep talk, just ask!"
+                )
+            if module == "wellbeing":
+                return (
+                    "Well-being tips:\n"
+                    "1. Take regular breaks to stretch, breathe, or step outside.\n"
+                    "2. Make time for things you enjoy, even if it's just a few minutes.\n"
+                    "3. Stay hydrated and eat nourishing food.\n"
+                    "4. Connect with friends or family for support.\n"
+                    "5. Try a short mindfulness or breathing exercise."
+                )
+            if module == "emotional_support":
+                return (
+                    "Emotional support tips:\n"
+                    "1. It's okay to feel how you feel—give yourself permission to experience it.\n"
+                    "2. Talk to someone you trust, or write your thoughts down.\n"
+                    "3. Take a break from screens and do something grounding.\n"
+                    "4. Try a simple breathing exercise: inhale for 4, hold for 4, exhale for 4.\n"
+                    "5. If you want a joke or a distraction, just say so!"
+                )
+            # General fallback
+            return (
+                "Here are some general tips for balance:\n"
+                "1. Set clear boundaries between work and rest.\n"
+                "2. Make time for things that recharge you.\n"
+                "3. Don't be afraid to ask for help.\n"
+                "4. Progress is better than perfection.\n"
+                "5. If you want tips for a specific area, just tell me!"
+            )
         # Handle statements (not just questions)
         if user_message_lower.endswith(".") or (user_message_lower and not user_message_lower.endswith("?")):
             # Empathetic statement handling
