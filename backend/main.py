@@ -101,92 +101,82 @@ def get_current_user_optional(request: Request, db: Session = Depends(get_db)):
     return user
 
 def generate_ai_response(user_message: str) -> str:
-    """Generate AI response using free cloud service"""
+    """Generate a calm, friendly, and general AI response for life balance and well-being."""
     try:
-        # Create a context-aware prompt for study advice
-        prompt = f"""You are a helpful study balance assistant for IB students. A student asks: "{user_message}"
-
-Please provide thoughtful, balanced advice about study-life balance, time management, stress relief, or academic success. Keep responses friendly, practical, and encouraging. Focus on helping students find healthy balance between schoolwork and personal time.
-
-Response:"""
-        
-        # Enhanced keyword-based responses with more variety and context awareness
         user_message_lower = user_message.lower()
-        
+
         # Break and rest related
         if any(keyword in user_message_lower for keyword in ["break", "rest", "tired", "exhausted", "burnout"]):
             responses = [
-                "It sounds like you might need a break! Taking short breaks every 45-60 minutes can actually improve your focus and productivity. Try the Pomodoro technique: 25 minutes of focused work, then a 5-minute break. Your brain needs rest to process information effectively.",
-                "I understand the struggle with taking breaks during IB! Remember, breaks aren't wasted time - they're essential for maintaining your mental health and academic performance. Even a 5-minute stretch or walk can refresh your mind significantly.",
-                "The pressure to keep studying is real in IB, but your body and mind need rest to function at their best. Try setting a timer for 25-minute study sessions, then force yourself to take a 5-minute break. You'll actually get more done this way!"
+                "It sounds like you might need a break! Taking short breaks can actually improve your focus and energy. Try the Pomodoro technique: 25 minutes of focused work, then a 5-minute break. Your mind and body will thank you.",
+                "Remember, breaks aren't wasted time—they're essential for your well-being. Even a few minutes to stretch, breathe, or step outside can help you recharge and return with a clearer mind.",
+                "It's okay to pause and rest. Sometimes the best way to move forward is to give yourself permission to relax for a bit."
             ]
             return responses[len(user_message) % len(responses)]
-        
+
         # Time management
         elif any(keyword in user_message_lower for keyword in ["time", "schedule", "plan", "organize", "manage"]):
             responses = [
-                "Time management is key! Try creating a weekly schedule with specific time blocks for studying, breaks, and personal activities. Use tools like Google Calendar or a simple planner. Remember to include buffer time for unexpected tasks.",
-                "IB can feel overwhelming, but breaking it down helps! Create a master list of all your assignments, then prioritize them by deadline and importance. Schedule specific times for each task, and don't forget to include breaks and personal time.",
-                "Try the Eisenhower Matrix: categorize tasks as urgent/important, important/not urgent, urgent/not important, or neither. Focus on the important ones first, even if they're not urgent. This helps prevent last-minute stress!"
+                "Time management is about finding what works for you. Try making a simple list of your top priorities for the day, and give yourself permission to adjust as needed.",
+                "A gentle routine can help bring structure to your day. Block out time for work, rest, and things you enjoy. Remember, it's okay if things don't go perfectly—progress is what matters.",
+                "Balance comes from being kind to yourself. If your schedule feels overwhelming, see if you can simplify or delegate a task. Small steps add up."
             ]
             return responses[len(user_message) % len(responses)]
-        
+
         # Stress and anxiety
         elif any(keyword in user_message_lower for keyword in ["stress", "anxiety", "overwhelmed", "pressure", "worried"]):
             responses = [
-                "Stress is normal, but manageable! Try deep breathing exercises, take short walks, or practice mindfulness. Don't forget to get enough sleep and eat well. It's okay to ask for help when you need it.",
-                "IB stress is real, and it's okay to feel overwhelmed sometimes. Try the 4-7-8 breathing technique: inhale for 4 counts, hold for 7, exhale for 8. Also, remember that your worth isn't defined by your grades alone.",
-                "When you're feeling stressed, try the 5-4-3-2-1 grounding technique: name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste. This helps bring you back to the present moment."
+                "When things feel overwhelming, try to pause and take a few slow, deep breaths. Remind yourself that it's okay to feel this way, and that you can take things one step at a time.",
+                "Stress is a normal part of life, but it doesn't define you. Try grounding yourself in the present moment—notice what you can see, hear, and feel right now.",
+                "If you're feeling anxious, remember to be gentle with yourself. Sometimes talking to a friend or taking a short walk can help shift your perspective."
             ]
             return responses[len(user_message) % len(responses)]
-        
+
         # Balance and personal life
         elif any(keyword in user_message_lower for keyword in ["balance", "personal", "life", "social", "friends", "family"]):
             responses = [
-                "Finding balance is a journey! Start by setting clear boundaries between study time and personal time. Make sure to schedule activities you enjoy, get enough sleep, and maintain social connections. Remember, you're more than just your grades.",
-                "It's easy to let IB consume everything, but maintaining your personal life is crucial for your mental health. Schedule regular time with friends and family, even if it's just a quick coffee or phone call. These connections keep you grounded.",
-                "Think of your life as a pie chart - IB studies should be a significant slice, but not the whole pie. Make sure you're also allocating time for sleep, exercise, social activities, and hobbies. A balanced life leads to better academic performance."
+                "Finding balance is a journey, not a destination. Make time for things that bring you joy, whether that's connecting with others or enjoying a quiet moment alone.",
+                "Your well-being matters. Try to set gentle boundaries between work and personal time, and remember to celebrate the small wins along the way.",
+                "It's important to nurture your relationships and your own interests. Even a short call with a friend or a favorite hobby can help you feel more grounded."
             ]
             return responses[len(user_message) % len(responses)]
-        
+
         # Study techniques
         elif any(keyword in user_message_lower for keyword in ["study", "learn", "exam", "test", "homework", "assignment"]):
             responses = [
-                "Effective studying is about quality over quantity! Try active learning techniques like summarizing in your own words, teaching concepts to others, or creating mind maps. Take regular breaks and study in focused sessions rather than marathon cramming.",
-                "Instead of passive reading, try active recall: cover your notes and try to explain the concepts out loud. This forces your brain to retrieve information, making it stick better. Also, vary your study locations to improve memory retention.",
-                "Break down complex topics into smaller chunks and use the Feynman Technique: explain the concept as if you're teaching it to someone who knows nothing about it. If you can't explain it simply, you don't understand it well enough yet."
+                "Effective learning is about quality, not just quantity. Try summarizing what you've learned in your own words, or teaching it to someone else.",
+                "Take regular breaks and be kind to yourself if you get stuck. Sometimes stepping away for a moment helps you see things more clearly when you return.",
+                "Remember, it's okay to ask for help or try a new approach if something isn't working. Learning is a process, and you're doing your best."
             ]
             return responses[len(user_message) % len(responses)]
-        
+
         # Sleep and health
         elif any(keyword in user_message_lower for keyword in ["sleep", "tired", "energy", "health", "exercise"]):
             responses = [
-                "Sleep is your superpower! Aim for 7-9 hours of quality sleep each night. Your brain consolidates learning while you sleep, so good sleep actually improves your academic performance. Try to maintain a consistent sleep schedule.",
-                "Physical health directly impacts your mental performance. Even 20 minutes of exercise can boost your mood and concentration. Try taking short walks between study sessions, or do some stretching exercises to keep your energy up.",
-                "Don't underestimate the power of good nutrition! Eat regular meals, stay hydrated, and include protein and complex carbs in your diet. Your brain needs fuel to function at its best during those long study sessions."
+                "Good sleep and gentle movement are the foundation of well-being. Try to keep a regular sleep schedule and move your body in ways that feel good to you.",
+                "Even a short walk or a few stretches can boost your mood and energy. Listen to your body and give it the care it needs.",
+                "Nourishing your body with food, rest, and kindness helps you show up as your best self."
             ]
             return responses[len(user_message) % len(responses)]
-        
+
         # Motivation and encouragement
         elif any(keyword in user_message_lower for keyword in ["motivation", "give up", "can't", "impossible", "hard"]):
             responses = [
-                "Remember why you started this journey! IB is challenging, but you're capable of handling it. Break down overwhelming tasks into smaller, manageable steps. Celebrate your progress, no matter how small it seems.",
-                "It's okay to have moments of doubt - every IB student does! When you're feeling overwhelmed, remind yourself that this is temporary and you're building skills that will serve you well beyond high school. You've got this!",
-                "Progress isn't always linear, and that's normal! Some days will be harder than others, but every day you show up and try, you're moving forward. Don't compare your journey to others - focus on your own growth and improvement."
+                "It's okay to have ups and downs. Progress isn't always linear, but every small step counts. Be proud of what you've accomplished so far.",
+                "When things feel tough, remember why you started and give yourself credit for showing up. You're stronger than you think.",
+                "You don't have to do everything perfectly. Being gentle with yourself is a strength, not a weakness."
             ]
             return responses[len(user_message) % len(responses)]
-        
+
         else:
-            # More varied generic responses
             generic_responses = [
-                "That's a great question! As an IB student, it's important to find your own rhythm. Try breaking your tasks into smaller, manageable chunks, and don't forget to celebrate your progress. What specific aspect of study-life balance are you struggling with? I'm here to help you find what works best for you.",
-                "I appreciate you reaching out about this! Every IB student faces unique challenges, and there's no one-size-fits-all solution. Could you tell me more about your specific situation? That way I can give you more targeted advice.",
-                "You're asking the right questions! Finding balance in IB is a skill that takes time to develop. What works for one person might not work for another, so it's important to experiment and find what fits your lifestyle and personality."
+                "I'm here to listen and support you. What's on your mind today?",
+                "Balancing life can be challenging, but you're not alone. Is there something specific you'd like advice or encouragement about?",
+                "Remember to take things one step at a time. If you want to talk or need a strategy, just let me know."
             ]
             return generic_responses[len(user_message) % len(generic_responses)]
-            
     except Exception as e:
-        return "I'm here to help with your study-life balance! Try asking me about time management, stress relief, study techniques, or finding balance between school and personal time."
+        return "I'm here to help you find balance and well-being. Try asking me about time management, stress relief, or anything else on your mind!"
 
 @app.get("/")
 def read_root():

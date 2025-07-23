@@ -50,19 +50,27 @@ export default function Chat({ onSend, selectedChat }) {
   const handleSend = async (text) => {
     if (!text.trim() || loading) return;
     setShowSuggestedPrompts(false);
-    setMessages(msgs => [...msgs, { sender: 'user', text }]);
     setInput('');
     setLoading(true);
-    // Show typing animation immediately
-    setMessages(msgs => [...msgs, { sender: 'user', text }, { sender: 'assistant', text: 'Typing...' }]);
-    let reply = '';
-    if (onSend) {
-      reply = await onSend(text);
-    } else {
-      reply = 'This is a placeholder response.';
-    }
+    // Add user message and 'Typing...' message
     setMessages(msgs => [
-      ...msgs.slice(0, -1), // Remove the 'Typing...' message
+      ...msgs,
+      { sender: 'user', text },
+      { sender: 'assistant', text: 'Typing...' }
+    ]);
+    let reply = '';
+    try {
+      if (onSend) {
+        reply = await onSend(text);
+      } else {
+        reply = 'This is a placeholder response.';
+      }
+    } catch (e) {
+      reply = 'Sorry, there was a problem contacting the AI.';
+    }
+    // Replace the last 'Typing...' message with the real response
+    setMessages(msgs => [
+      ...msgs.slice(0, -1),
       { sender: 'assistant', text: reply }
     ]);
     setLoading(false);
