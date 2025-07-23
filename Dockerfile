@@ -20,7 +20,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
 
 # Copy backend
-COPY --from=backend-build /app /app/backend
+COPY --from=backend-build /app/backend /app/backend
 
 # Install backend dependencies in the final image
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
