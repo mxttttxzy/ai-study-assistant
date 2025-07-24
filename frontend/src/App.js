@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import Chat from './Chat';
 import AISettings from './AISettings';
+import AuthModal from './AuthModal';
 
 function App() {
   const [chatHistory, setChatHistory] = useState([]); // Array of {id, messages: [{sender, text, timestamp}], timestamp}
@@ -15,6 +16,9 @@ function App() {
     ],
     timestamp: new Date().toISOString()
   });
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [userEmail, setUserEmail] = useState(localStorage.getItem('userEmail') || null);
 
   // Load chat history from localStorage on mount
   useEffect(() => {
@@ -112,6 +116,20 @@ function App() {
     return title || 'New conversation';
   };
 
+  const handleLogin = (token, email) => {
+    setToken(token);
+    setUserEmail(email);
+    localStorage.setItem('token', token);
+    localStorage.setItem('userEmail', email);
+    setShowAuthModal(false);
+  };
+  const handleLogout = () => {
+    setToken(null);
+    setUserEmail(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+  };
+
   return (
     <div className="app-background">
       <div className="main-container">
@@ -120,9 +138,12 @@ function App() {
             <h3>Chat History</h3>
             <div className="sidebar-actions">
               <button className="new-chat-btn" onClick={handleNewChat}>+ New Chat</button>
-              <button className="settings-btn" onClick={() => setShowAISettings(true)} title="AI Settings">
-                ⚙️
-              </button>
+              <button className="settings-btn" onClick={() => setShowAISettings(true)} title="AI Settings">⚙️</button>
+              {!token ? (
+                <button className="login-btn" onClick={() => setShowAuthModal(true)}>Login</button>
+              ) : (
+                <button className="logout-btn" onClick={handleLogout}>Logout</button>
+              )}
             </div>
           </div>
           <div className="chat-history-list">
@@ -168,10 +189,11 @@ function App() {
           </div>
         </div>
         <div className="chat-container">
-          <Chat key={chatKey} onSend={handleSendMessage} selectedChat={currentChat} />
+          <Chat key={chatKey} onSend={handleSendMessage} selectedChat={currentChat} token={token} />
         </div>
       </div>
-      <AISettings isOpen={showAISettings} onClose={() => setShowAISettings(false)} />
+      <AISettings isOpen={showAISettings} onClose={() => setShowAISettings(false)} token={token} />
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onLogin={handleLogin} />
     </div>
   );
 }

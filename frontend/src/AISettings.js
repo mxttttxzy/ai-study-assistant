@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AISettings.css';
 
-export default function AISettings({ isOpen, onClose }) {
+export default function AISettings({ isOpen, onClose, token }) {
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [userPreferences, setUserPreferences] = useState({
@@ -31,26 +31,27 @@ export default function AISettings({ isOpen, onClose }) {
       setAvailableModels(modelsData.available_models);
       setSelectedModel(modelsData.default_model);
 
-      // Load user preferences
-      const prefsResponse = await fetch(`${backendUrl}/api/user/preferences`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      // Load user preferences only if logged in
+      if (token) {
+        const prefsResponse = await fetch(`${backendUrl}/api/user/preferences`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (prefsResponse.ok) {
+          const prefsData = await prefsResponse.json();
+          setUserPreferences(prefsData);
         }
-      });
-      if (prefsResponse.ok) {
-        const prefsData = await prefsResponse.json();
-        setUserPreferences(prefsData);
-      }
-
-      // Load user documents
-      const docsResponse = await fetch(`${backendUrl}/api/documents`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        // Load user documents
+        const docsResponse = await fetch(`${backendUrl}/api/documents`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (docsResponse.ok) {
+          const docsData = await docsResponse.json();
+          setDocuments(docsData);
         }
-      });
-      if (docsResponse.ok) {
-        const docsData = await docsResponse.json();
-        setDocuments(docsData);
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -72,7 +73,7 @@ export default function AISettings({ isOpen, onClose }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           filename: file.name,
@@ -104,21 +105,22 @@ export default function AISettings({ isOpen, onClose }) {
   };
 
   const updatePreferences = async () => {
+    if (!token) return;
     try {
       const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
       const response = await fetch(`${backendUrl}/api/user/preferences`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(userPreferences)
       });
-
       if (response.ok) {
         alert('Preferences updated successfully!');
       } else {
-        alert('Failed to update preferences');
+        const data = await response.json();
+        alert(data.detail || 'Failed to update preferences');
       }
     } catch (error) {
       console.error('Error updating preferences:', error);
@@ -135,9 +137,15 @@ export default function AISettings({ isOpen, onClose }) {
           <h2>AI Assistant Settings</h2>
           <button onClick={onClose} className="close-btn">×</button>
         </div>
-
         {loading ? (
           <div className="loading">Loading settings...</div>
+        ) : !token ? (
+          <div className="ai-settings-content">
+            <div className="setting-section">
+              <h3>Login Required</h3>
+              <p className="setting-description">Please log in to save your preferences and upload documents.</p>
+            </div>
+          </div>
         ) : (
           <div className="ai-settings-content">
             {/* AI Model Selection */}
