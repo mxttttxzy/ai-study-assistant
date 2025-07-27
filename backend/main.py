@@ -27,7 +27,12 @@ app = FastAPI()
 # Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:80", "https://your-domain.com"],
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://localhost:80", 
+        "https://ai-study-assistant.onrender.com",
+        "https://your-domain.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -384,7 +389,23 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    """Health check endpoint"""
+    try:
+        # Test AI engine
+        available_models = ai_engine.get_available_models()
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "ai_engine": "available",
+            "available_models": available_models,
+            "default_model": ai_engine.default_model
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        }
 
 @app.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -422,6 +443,8 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest, current_user: Optional[User] = Depends(get_current_user_optional), db: Session = Depends(get_db)):
     try:
+        print(f"Chat request received: model={req.model}, message_length={len(req.message)}")
+        
         # Get user context
         user_context = None
         if current_user:
@@ -445,6 +468,8 @@ async def chat_endpoint(req: ChatRequest, current_user: Optional[User] = Depends
             user_context=user_context,
             documents=documents
         )
+        
+        print(f"AI response generated: model={ai_response.get('model')}, provider={ai_response.get('provider')}")
         
         # Save to database if user is logged in
         if current_user:
@@ -480,7 +505,9 @@ async def chat_endpoint(req: ChatRequest, current_user: Optional[User] = Depends
     except Exception as e:
         # Log the error for debugging
         print(f"Error in chat endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error. Please try again.")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/models")
 def get_available_models():

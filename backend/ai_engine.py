@@ -38,11 +38,17 @@ class AIEngine:
                 "url": "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill",
                 "max_tokens": 2048,
                 "cost": "FREE"
+            },
+            "fallback-enhanced": {
+                "name": "Enhanced Local (Offline)",
+                "url": "local",
+                "max_tokens": 2048,
+                "cost": "FREE"
             }
         }
         
-        # Default model - prioritize free options
-        self.default_model = "huggingface-free"
+        # Default model - prioritize offline option
+        self.default_model = "fallback-enhanced"
         
     def _initialize_free_services(self):
         """Initialize free AI services and embeddings"""
@@ -55,13 +61,12 @@ class AIEngine:
     
     def get_available_models(self) -> List[str]:
         """Get list of available free models"""
-        available = []
+        available = ["fallback-enhanced"]  # Always available
         
-        # Always available free models
-        available.extend([
-            "huggingface-free",
-            "community-free"
-        ])
+        # Add external models if token is available
+        token = os.environ.get('HUGGINGFACE_TOKEN', '')
+        if token:
+            available.extend(["huggingface-free", "community-free"])
         
         # Check if Ollama is running locally
         if self._check_ollama_available():
@@ -89,7 +94,11 @@ class AIEngine:
         """Generate AI response using free services"""
         
         model = model or self.default_model
-        if model not in self.get_available_models():
+        available_models = self.get_available_models()
+        
+        # If requested model is not available, fall back to default
+        if model not in available_models:
+            print(f"Model {model} not available, falling back to {self.default_model}")
             model = self.default_model
         
         # Build context
@@ -102,7 +111,10 @@ class AIEngine:
             response = await self._generate_huggingface_response(context)
         elif model == "community-free":
             response = await self._generate_community_response(context)
+        elif model == "fallback-enhanced":
+            response = await self._generate_fallback_response(context)
         else:
+            # Final fallback
             response = await self._generate_fallback_response(context)
         
         # Update memory
@@ -239,11 +251,17 @@ Always be:
     async def _generate_huggingface_response(self, context: str) -> Dict[str, Any]:
         """Generate response using HuggingFace free API"""
         try:
+            # Check if we have a token
+            token = os.environ.get('HUGGINGFACE_TOKEN', '')
+            if not token:
+                print("No HuggingFace token provided, falling back to local model")
+                return await self._generate_fallback_response(context)
+            
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
                     headers={
-                        "Authorization": f"Bearer {os.environ.get('HUGGINGFACE_TOKEN', '')}"
+                        "Authorization": f"Bearer {token}"
                     },
                     json={"inputs": context},
                     timeout=30.0
@@ -267,7 +285,8 @@ Always be:
                         "provider": "huggingface-free"
                     }
                 else:
-                    raise Exception(f"HuggingFace API error: {response.status_code}")
+                    print(f"HuggingFace API error: {response.status_code}")
+                    return await self._generate_fallback_response(context)
                     
         except Exception as e:
             print(f"HuggingFace error: {e}")
@@ -276,11 +295,17 @@ Always be:
     async def _generate_community_response(self, context: str) -> Dict[str, Any]:
         """Generate response using community models"""
         try:
+            # Check if we have a token
+            token = os.environ.get('HUGGINGFACE_TOKEN', '')
+            if not token:
+                print("No HuggingFace token provided, falling back to local model")
+                return await self._generate_fallback_response(context)
+            
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill",
                     headers={
-                        "Authorization": f"Bearer {os.environ.get('HUGGINGFACE_TOKEN', '')}"
+                        "Authorization": f"Bearer {token}"
                     },
                     json={"inputs": context},
                     timeout=30.0
@@ -297,7 +322,8 @@ Always be:
                         "provider": "community-free"
                     }
                 else:
-                    raise Exception(f"Community API error: {response.status_code}")
+                    print(f"Community API error: {response.status_code}")
+                    return await self._generate_fallback_response(context)
                     
         except Exception as e:
             print(f"Community model error: {e}")
