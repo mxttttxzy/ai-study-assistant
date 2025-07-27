@@ -19,7 +19,7 @@ export default function Chat({ onSend, selectedChat }) {
   const [allowInput, setAllowInput] = useState(false); // Control input visibility
   const [offTopicWarning, setOffTopicWarning] = useState(''); // Show off-topic warning
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(new Set()); // Track which messages have feedback
-  const [selectedModel, setSelectedModel] = useState('gpt-3.5-turbo'); // Default model
+  const [selectedModel, setSelectedModel] = useState('fallback-enhanced'); // Default to offline AI
   const messagesEndRef = useRef(null);
 
   // Use messages from selectedChat or default welcome message
@@ -87,23 +87,22 @@ export default function Chat({ onSend, selectedChat }) {
 
   return (
     <div className="chat-box">
-      {/* Model Selection */}
-      {allowInput && (
-        <div className="model-selector">
-          <label htmlFor="model-select">AI Model: </label>
-          <select
-            id="model-select"
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="model-dropdown"
-          >
-            <option value="huggingface-free">🤗 HuggingFace Free</option>
-            <option value="community-free">🌐 Community Models</option>
-            <option value="ollama-local">🖥️ Ollama Local (if available)</option>
-            <option value="fallback-enhanced">💡 Enhanced Local</option>
-          </select>
-        </div>
-      )}
+      {/* Model Selection - Always visible */}
+      <div className="model-selector">
+        <label htmlFor="model-select">AI Model: </label>
+        <select
+          id="model-select"
+          value={selectedModel}
+          onChange={(e) => setSelectedModel(e.target.value)}
+          className="model-dropdown"
+        >
+          <option value="fallback-enhanced">💡 Enhanced Local (Offline)</option>
+          <option value="huggingface-free">🤗 HuggingFace Free</option>
+          <option value="community-free">🌐 Community Models</option>
+          <option value="ollama-local">🖥️ Ollama Local (if available)</option>
+        </select>
+      </div>
+      
       <div className="messages">
         {messages.map((msg, i) => (
           <div key={i} className={`msg ${msg.sender}`}>

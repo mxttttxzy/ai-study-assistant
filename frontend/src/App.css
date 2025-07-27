@@ -65,9 +65,9 @@ body, html, #root, .app-background {
 }
 
 .settings-btn {
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: #2d3748;
+  color: #e2e8f0;
+  border: 1px solid #4a5568;
   padding: 8px;
   border-radius: 6px;
   cursor: pointer;
@@ -81,7 +81,7 @@ body, html, #root, .app-background {
 }
 
 .settings-btn:hover {
-  background: #e5e7eb;
+  background: #4a5568;
   transform: scale(1.05);
 }
 
@@ -170,7 +170,7 @@ body, html, #root, .app-background {
   color: #4a5568;
 }
 
-.logout-btn {
+.login-btn {
   background: #48bb78;
   color: white;
   border: none;
@@ -182,7 +182,7 @@ body, html, #root, .app-background {
   font-weight: 500;
 }
 
-.logout-btn:hover {
+.login-btn:hover {
   background: #38a169;
   transform: translateY(-1px);
 }
