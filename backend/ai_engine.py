@@ -4,20 +4,12 @@ import asyncio
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
 import httpx
-from langchain.schema import HumanMessage, SystemMessage
-from langchain.memory import ConversationBufferWindowMemory
-from sentence_transformers import SentenceTransformer
-import numpy as np
-from tenacity import retry, stop_after_attempt, wait_exponential
-import tiktoken
+import hashlib
+import random
 
 class AIEngine:
     def __init__(self):
-        self.embeddings_model = None
-        self.memory = ConversationBufferWindowMemory(k=10)
-        
-        # Initialize free AI services
-        self._initialize_free_services()
+        self.memory = []
         
         # Available free models
         self.free_models = {
@@ -50,15 +42,6 @@ class AIEngine:
         # Default model - prioritize offline option
         self.default_model = "fallback-enhanced"
         
-    def _initialize_free_services(self):
-        """Initialize free AI services and embeddings"""
-        # Free embeddings model
-        try:
-            self.embeddings_model = SentenceTransformer('all-MiniLM-L6-v2')
-        except Exception as e:
-            print(f"Warning: Could not load embeddings model: {e}")
-            self.embeddings_model = None
-    
     def get_available_models(self) -> List[str]:
         """Get list of available free models"""
         available = ["fallback-enhanced"]  # Always available
@@ -82,7 +65,6 @@ class AIEngine:
         except:
             return False
     
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     async def generate_response(
         self, 
         message: str, 
@@ -118,10 +100,15 @@ class AIEngine:
             response = await self._generate_fallback_response(context)
         
         # Update memory
-        self.memory.save_context(
-            {"input": message},
-            {"output": response["content"]}
-        )
+        self.memory.append({
+            "input": message,
+            "output": response["content"],
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        # Keep only last 10 interactions
+        if len(self.memory) > 10:
+            self.memory = self.memory[-10:]
         
         return response
     
@@ -203,24 +190,28 @@ Always be:
             return ""
         
         # Simple keyword matching for now
-        # In production, use proper vector search
         relevant_content = []
         for doc in documents:
             if any(keyword in doc.lower() for keyword in query.lower().split()):
                 relevant_content.append(doc[:500] + "..." if len(doc) > 500 else doc)
         
-        return "\n".join(relevant_content) if relevant_content else ""
+        return "\n".join(relevant_content)
     
     def _format_history(self, history: List[Dict]) -> str:
-        """Format conversation history for context"""
+        """Format conversation history"""
+        if not history:
+            return ""
+        
         formatted = []
-        for msg in history[-10:]:  # Last 10 messages
-            role = "User" if msg.get("sender") == "user" else "Assistant"
-            formatted.append(f"{role}: {msg.get('text', '')}")
+        for msg in history[-5:]:  # Last 5 messages
+            role = msg.get("sender", "user")
+            content = msg.get("text", "")
+            formatted.append(f"{role}: {content}")
+        
         return "\n".join(formatted)
     
     async def _generate_ollama_response(self, context: str) -> Dict[str, Any]:
-        """Generate response using local Ollama"""
+        """Generate response using Ollama local API"""
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -242,7 +233,8 @@ Always be:
                         "provider": "ollama-local"
                     }
                 else:
-                    raise Exception(f"Ollama API error: {response.status_code}")
+                    print(f"Ollama API error: {response.status_code}")
+                    return await self._generate_fallback_response(context)
                     
         except Exception as e:
             print(f"Ollama error: {e}")
@@ -469,33 +461,33 @@ What's on your mind? I'm here to listen and provide helpful guidance!"""
         }
     
     def create_embedding(self, text: str) -> List[float]:
-        """Create embedding for text"""
+        """Create simple embedding for text"""
         try:
-            if self.embeddings_model:
-                embedding = self.embeddings_model.encode(text)
-                return embedding.tolist()
-            else:
-                # Simple fallback embedding
-                return [hash(text) % 1000] * 384  # Mock embedding
+            # Simple hash-based embedding
+            hash_obj = hashlib.md5(text.encode())
+            hash_hex = hash_obj.hexdigest()
+            # Convert hex to list of floats
+            embedding = []
+            for i in range(0, len(hash_hex), 2):
+                if len(embedding) < 384:  # Standard embedding size
+                    embedding.append(float(int(hash_hex[i:i+2], 16)) / 255.0)
+            # Pad or truncate to 384 dimensions
+            while len(embedding) < 384:
+                embedding.append(0.0)
+            return embedding[:384]
         except Exception as e:
             print(f"Embedding error: {e}")
-            return []
+            return [0.0] * 384
     
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """Calculate similarity between two texts"""
         try:
-            if self.embeddings_model:
-                embedding1 = self.embeddings_model.encode(text1)
-                embedding2 = self.embeddings_model.encode(text2)
-                similarity = np.dot(embedding1, embedding2) / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
-                return float(similarity)
-            else:
-                # Simple fallback similarity
-                words1 = set(text1.lower().split())
-                words2 = set(text2.lower().split())
-                intersection = words1.intersection(words2)
-                union = words1.union(words2)
-                return len(intersection) / len(union) if union else 0.0
+            # Simple word overlap similarity
+            words1 = set(text1.lower().split())
+            words2 = set(text2.lower().split())
+            intersection = words1.intersection(words2)
+            union = words1.union(words2)
+            return len(intersection) / len(union) if union else 0.0
         except Exception as e:
             print(f"Similarity calculation error: {e}")
             return 0.0
